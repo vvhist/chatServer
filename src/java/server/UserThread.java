@@ -23,8 +23,8 @@ public class UserThread implements Runnable {
                              socket.getOutputStream(), "UTF-8")), true)) {
 
             for (String inputLine; (inputLine = in.readLine()) != null;) {
-                if (inputLine.startsWith("Nickname:")) {
-                    String username = inputLine.replace("Nickname:", "@");
+                if (inputLine.startsWith("name ")) {
+                    String username = inputLine.replace("name ", "");
                     if (Server.recognizesUser(username)) {
                         user = Server.getUser(username);
                     } else {
@@ -34,31 +34,52 @@ public class UserThread implements Runnable {
                     }
                     Server.addConnection(username, out);
                     user.setOnline(true);
-                    out.println("Successful connection, " + username);
-                } else if (inputLine.equals("bye")) {
-                    user.setOnline(false);
-                    Server.removeConnection(user.getUsername());
-                    break;
-                } else if (inputLine.startsWith("@")) {
-                    String interlocutorName = inputLine.substring(0, inputLine.indexOf(' '));
-                    if (!Server.recognizesUser(interlocutorName)) {
-                        out.println(interlocutorName + " has not been registered yet");
-                    } else if (!Server.getUser(interlocutorName).isOnline()) {
-                        out.println(interlocutorName + " is currently offline. Please try later");
+                    out.println("Server Server: Successful connection, " + username
+                            + ". Use command 'add <nickname>' to start a conversation.");
+                } else if (inputLine.startsWith("Server ")) {
+                    String message = inputLine.replace("Server ", "");
+                    out.println("Server " + user.getUsername() + ": " + message);
+                    if (message.startsWith("add ")) {
+                        String interlocutorName = message.replace("add ", "");
+                        if (!Server.recognizesUser(interlocutorName)) {
+                            out.println("Server Server: "+ interlocutorName + " is not found.");
+                        } else {
+                            out.println("newChat " + interlocutorName);
+                        }
+                    } else if (message.equals("bye")) {
+                        user.setOnline(false);
+                        Server.removeConnection(user.getUsername());
+                        break;
                     } else {
-                        String message = inputLine.substring(inputLine.indexOf(' ') + 1);
-                        String detailedMessage = user.getUsername() + ": " + message;
-                        Server.sendMessage(interlocutorName, detailedMessage);
-                        out.println(user.getUsername() + ": " + inputLine);
+                        out.println("Server Server: Unknown command: " + message);
                     }
                 } else {
-                    out.println("Unknown command: " + inputLine);
+                    String interlocutorName = inputLine.substring(0, inputLine.indexOf(' '));
+                    if (!Server.recognizesUser(interlocutorName)) {
+                        out.println("Server Server: " + interlocutorName + " is not found.");
+                    } else if (!Server.getUser(interlocutorName).isOnline()) {
+                        out.println(interlocutorName + " "
+                                  + interlocutorName + " is currently offline. Please try later.");
+                    } else {
+                        String message = inputLine.substring(inputLine.indexOf(' ') + 1);
+                        String detailedMessage = user.getUsername() + " "
+                                               + user.getUsername() + ": " + message;
+                        Server.sendMessage(interlocutorName, detailedMessage);
+                        out.println(interlocutorName + " " + user.getUsername() + ": " + message);
+                    }
                 }
             }
-            System.out.println("Socket closed");
-            socket.close();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                socket.close();
+                user.setOnline(false);
+                Server.removeConnection(user.getUsername());
+                System.out.println("Socket closed");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
