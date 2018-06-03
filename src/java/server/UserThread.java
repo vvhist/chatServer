@@ -6,7 +6,7 @@ import java.net.Socket;
 public class UserThread implements Runnable {
 
     private Socket socket;
-    private User user;
+    private User user = null;
 
     public UserThread(Socket socket) {
         this.socket = socket;
@@ -23,20 +23,42 @@ public class UserThread implements Runnable {
                              socket.getOutputStream(), "UTF-8")), true)) {
 
             for (String inputLine; (inputLine = in.readLine()) != null;) {
-                if (inputLine.startsWith("name ")) {
-                    String username = inputLine.replace("name ", "");
-                    if (Server.recognizesUser(username)) {
-                        user = Server.getUser(username);
-                    } else {
-                        user = new User(username);
-                        Server.addUser(username, user);
-                        System.out.println(username + " is registered");
+                if (inputLine.startsWith("/")) {
+                    if (inputLine.equals("/exit")) {
+                        break;
+                    } else if (inputLine.startsWith("/log/")) {
+                        String authData = inputLine.replace("/log/", "");
+                        String username = authData.substring(0, authData.indexOf('/'));
+                        if (!Server.recognizesUser(username)) {
+                            out.println("/deny");
+                        } else {
+                            user = Server.getUser(username);
+                            if (!user.hasCorrectPassword(authData.substring(
+                                    authData.indexOf('/') + 1).toCharArray())) {
+                                user = null;
+                                out.println("/deny");
+                            } else {
+                                Server.addConnection(username, out);
+                                user.setOnline(true);
+                                out.println("/pass");
+                            }
+                        }
+                    } else if (inputLine.startsWith("/reg/")) {
+                        String authData = inputLine.replace("/reg/", "");
+                        String username = authData.substring(0, authData.indexOf('/'));
+                        if (Server.recognizesUser(username)) {
+                            out.println("/denyName");
+                        } else {
+                            user = new User(username, authData.substring(
+                                                      authData.indexOf('/') + 1).toCharArray());
+                            Server.addUser(username, user);
+                            Server.addConnection(username, out);
+                            user.setOnline(true);
+                            out.println("/pass");
+                        }
                     }
-                    Server.addConnection(username, out);
-                    user.setOnline(true);
-                    out.println("Server Server: Successful connection, " + username
-                            + ". Use command 'add <nickname>' to start a conversation.");
-                } else if (inputLine.startsWith("Server ")) {
+                }
+                else if (inputLine.startsWith("Server ")) {
                     String message = inputLine.replace("Server ", "");
                     out.println("Server " + user.getUsername() + ": " + message);
                     if (message.startsWith("add ")) {
@@ -44,12 +66,8 @@ public class UserThread implements Runnable {
                         if (!Server.recognizesUser(interlocutorName)) {
                             out.println("Server Server: "+ interlocutorName + " is not found.");
                         } else {
-                            out.println("newChat " + interlocutorName);
+                            out.println("/newDialog " + interlocutorName);
                         }
-                    } else if (message.equals("bye")) {
-                        user.setOnline(false);
-                        Server.removeConnection(user.getUsername());
-                        break;
                     } else {
                         out.println("Server Server: Unknown command: " + message);
                     }
@@ -72,10 +90,12 @@ public class UserThread implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            try {
-                socket.close();
+            if (user != null) {
                 user.setOnline(false);
                 Server.removeConnection(user.getUsername());
+            }
+            try {
+                socket.close();
                 System.out.println("Socket closed");
             } catch (IOException e) {
                 e.printStackTrace();
