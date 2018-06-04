@@ -56,34 +56,25 @@ public class UserThread implements Runnable {
                             user.setOnline(true);
                             out.println("/pass");
                         }
-                    }
-                }
-                else if (inputLine.startsWith("Server ")) {
-                    String message = inputLine.replace("Server ", "");
-                    out.println("Server " + user.getUsername() + ": " + message);
-                    if (message.startsWith("add ")) {
-                        String interlocutorName = message.replace("add ", "");
-                        if (!Server.recognizesUser(interlocutorName)) {
-                            out.println("Server Server: "+ interlocutorName + " is not found.");
+                    } else if (inputLine.startsWith("/add/")) {
+                        String contact = inputLine.replace("/add/", "");
+                        if (!Server.recognizesUser(contact)) {
+                            out.println("/notFound/" + contact);
                         } else {
-                            out.println("/newDialog " + interlocutorName);
+                            out.println("/newDialog/" + contact);
                         }
-                    } else {
-                        out.println("Server Server: Unknown command: " + message);
                     }
                 } else {
-                    String interlocutorName = inputLine.substring(0, inputLine.indexOf(' '));
-                    if (!Server.recognizesUser(interlocutorName)) {
-                        out.println("Server Server: " + interlocutorName + " is not found.");
-                    } else if (!Server.getUser(interlocutorName).isOnline()) {
-                        out.println(interlocutorName + " "
+                    String interlocutorName = inputLine.substring(0, inputLine.indexOf('/'));
+                    if (!Server.getUser(interlocutorName).isOnline()) {
+                        out.println(interlocutorName + "/"
                                   + interlocutorName + " is currently offline. Please try later.");
                     } else {
-                        String message = inputLine.substring(inputLine.indexOf(' ') + 1);
-                        String detailedMessage = user.getUsername() + " "
+                        String message = inputLine.substring(inputLine.indexOf('/') + 1);
+                        String detailedMessage = user.getUsername() + "/"
                                                + user.getUsername() + ": " + message;
                         Server.sendMessage(interlocutorName, detailedMessage);
-                        out.println(interlocutorName + " " + user.getUsername() + ": " + message);
+                        out.println(interlocutorName + "/" + user.getUsername() + ": " + message);
                     }
                 }
             }
