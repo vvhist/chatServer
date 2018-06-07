@@ -32,15 +32,14 @@ public class UserThread implements Runnable {
                         if (!Server.recognizesUser(username)) {
                             out.println("/deny");
                         } else {
-                            user = Server.getUser(username);
-                            if (!user.hasCorrectPassword(authData.substring(
-                                    authData.indexOf('/') + 1).toCharArray())) {
-                                user = null;
+                            User enteringUser = Server.getUser(username);
+                            if (!enteringUser.hasCorrectPassword(
+                                    authData.substring(authData.indexOf('/') + 1).toCharArray())) {
                                 out.println("/deny");
                             } else {
-                                Server.addConnection(username, out);
-                                user.setOnline(true);
                                 out.println("/pass");
+                                user = enteringUser;
+                                user.connect(out);
                             }
                         }
                     } else if (inputLine.startsWith("/reg/")) {
@@ -49,12 +48,11 @@ public class UserThread implements Runnable {
                         if (Server.recognizesUser(username)) {
                             out.println("/denyName");
                         } else {
+                            out.println("/pass");
                             user = new User(username, authData.substring(
                                                       authData.indexOf('/') + 1).toCharArray());
                             Server.addUser(username, user);
-                            Server.addConnection(username, out);
-                            user.setOnline(true);
-                            out.println("/pass");
+                            user.connect(out);
                         }
                     } else if (inputLine.startsWith("/add/")) {
                         String contact = inputLine.replace("/add/", "");
@@ -65,25 +63,20 @@ public class UserThread implements Runnable {
                         }
                     }
                 } else {
-                    String interlocutorName = inputLine.substring(0, inputLine.indexOf('/'));
-                    if (!Server.getUser(interlocutorName).isOnline()) {
-                        out.println(interlocutorName + "/"
-                                  + interlocutorName + " is currently offline. Please try later.");
-                    } else {
-                        String message = inputLine.substring(inputLine.indexOf('/') + 1);
-                        String detailedMessage = user.getUsername() + "/"
-                                               + user.getUsername() + ": " + message;
-                        Server.sendMessage(interlocutorName, detailedMessage);
-                        out.println(interlocutorName + "/" + user.getUsername() + ": " + message);
-                    }
+                    String contactName = inputLine.substring(0, inputLine.indexOf('/'));
+                    String message     = inputLine.substring(   inputLine.indexOf('/') + 1);
+                    User contact = Server.getUser(contactName);
+                    String detailedMessage = user.getUsername() + ": " + message;
+
+                    contact.sendMessage(user.getUsername() + "/" + detailedMessage);
+                    out.println(     contact.getUsername() + "/" + detailedMessage);
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
             if (user != null) {
-                user.setOnline(false);
-                Server.removeConnection(user.getUsername());
+                user.disconnect();
             }
             try {
                 socket.close();
