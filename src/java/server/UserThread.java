@@ -2,11 +2,14 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.time.ZoneId;
+import java.util.Arrays;
 
 public class UserThread implements Runnable {
 
     private Socket socket;
     private User user = null;
+
 
     public UserThread(Socket socket) {
         this.socket = socket;
@@ -27,32 +30,39 @@ public class UserThread implements Runnable {
                     if (inputLine.equals("/exit")) {
                         break;
                     } else if (inputLine.startsWith("/log/")) {
-                        String authData = inputLine.replace("/log/", "");
+                        inputLine = inputLine.replace("/log/", "");
+                        String timeZone = inputLine.substring(0, inputLine.indexOf(' '));
+                        String authData = inputLine.substring(   inputLine.indexOf(' ') + 1);
                         String username = authData.substring(0, authData.indexOf('/'));
-                        if (!Server.recognizesUser(username)) {
-                            out.println("/deny");
-                        } else {
+
+                        if (Server.recognizesUser(username)) {
+                            char[] password = authData.substring(authData.indexOf('/') + 1)
+                                    .toCharArray();
                             User enteringUser = Server.getUser(username);
-                            if (!enteringUser.hasCorrectPassword(
-                                    authData.substring(authData.indexOf('/') + 1).toCharArray())) {
+                            if (!enteringUser.hasCorrectPassword(password)) {
                                 out.println("/deny");
                             } else {
                                 out.println("/pass");
                                 user = enteringUser;
-                                user.connect(out);
+                                user.connect(out, ZoneId.of(timeZone));
                             }
+                        } else {
+                            out.println("/deny");
                         }
                     } else if (inputLine.startsWith("/reg/")) {
-                        String authData = inputLine.replace("/reg/", "");
+                        inputLine = inputLine.replace("/reg/", "");
+                        String timeZone = inputLine.substring(0, inputLine.indexOf(' '));
+                        String authData = inputLine.substring(   inputLine.indexOf(' ') + 1);
                         String username = authData.substring(0, authData.indexOf('/'));
-                        if (Server.recognizesUser(username)) {
-                            out.println("/denyName");
-                        } else {
+
+                        if (!Server.recognizesUser(username)) {
                             out.println("/pass");
-                            user = new User(username, authData.substring(
-                                                      authData.indexOf('/') + 1).toCharArray());
-                            Server.addUser(username, user);
-                            user.connect(out);
+                            char[] password = authData.substring(authData.indexOf('/') + 1)
+                                    .toCharArray();
+                            user = new User(username, password);
+                            user.connect(out, ZoneId.of(timeZone));
+                        } else {
+                            out.println("/denyName");
                         }
                     } else if (inputLine.startsWith("/add/")) {
                         String contact = inputLine.replace("/add/", "");
@@ -69,7 +79,7 @@ public class UserThread implements Runnable {
                     String detailedMessage = user.getUsername() + ": " + message;
 
                     contact.sendMessage(user.getUsername() + "/" + detailedMessage);
-                    out.println(     contact.getUsername() + "/" + detailedMessage);
+                    user.sendMessage(contact.getUsername() + "/" + detailedMessage);
                 }
             }
         } catch (IOException e) {
