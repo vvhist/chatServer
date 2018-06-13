@@ -8,13 +8,13 @@ import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class User {
+public final class User {
 
     private String username;
     private char[] password;
     private PrintWriter out;
     private ZoneId timeZone;
-    private Queue<String> unsentMessages = new ConcurrentLinkedQueue<>();
+    private Queue<Message> unsentMessages = new ConcurrentLinkedQueue<>();
 
     public User(String username, char[] password) {
         this.username = username;
@@ -27,33 +27,42 @@ public class User {
     }
 
     public boolean hasCorrectPassword(char[] suggestedPassword) {
-        return password.length == suggestedPassword.length
-                && Arrays.equals(password, suggestedPassword);
+        return Arrays.equals(password, suggestedPassword);
     }
 
     public void connect(PrintWriter out, ZoneId timeZone) {
         this.out = out;
         this.timeZone = timeZone;
-        while (!unsentMessages.isEmpty()) {
-            String message = unsentMessages.poll();
-            String time = message.substring(0, message.indexOf(' '));
-            message = message.substring(message.indexOf(' ') + 1);
-            ZonedDateTime clientTime = ZonedDateTime.parse(time);
-            out.println(clientTime.toLocalTime() + " " + message);
-        }
+        unsentMessages.forEach(Message::print);
     }
 
     public void disconnect() {
         out = null;
     }
 
-    public void sendMessage(String message) {
+    public void sendMessage(String text) {
         ZonedDateTime serverTime = ZonedDateTime.now().truncatedTo(ChronoUnit.MINUTES);
+        Message message = new Message(serverTime, text);
         if (out != null) {
-            ZonedDateTime clientTime = serverTime.withZoneSameInstant(timeZone);
-            out.println(clientTime.toLocalTime() + " " + message);
+            message.print();
         } else {
-            unsentMessages.add(serverTime + " " + message);
+            unsentMessages.add(message);
+        }
+    }
+
+
+    private final class Message {
+
+        ZonedDateTime timestamp;
+        String text;
+
+        Message(ZonedDateTime timestamp, String text) {
+            this.timestamp = timestamp;
+            this.text = text;
+        }
+
+        void print() {
+            out.println(timestamp.withZoneSameInstant(timeZone).toLocalTime() + " " + text);
         }
     }
 }
