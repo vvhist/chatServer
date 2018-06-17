@@ -3,13 +3,11 @@ package server;
 import java.io.*;
 import java.net.Socket;
 import java.time.ZoneId;
-import java.util.Arrays;
 
-public class UserThread implements Runnable {
+public final class UserThread implements Runnable {
 
     private Socket socket;
     private User user = null;
-
 
     public UserThread(Socket socket) {
         this.socket = socket;
@@ -30,42 +28,39 @@ public class UserThread implements Runnable {
                     if (inputLine.equals("/exit")) {
                         break;
                     } else if (inputLine.startsWith("/log/")) {
-                        inputLine = inputLine.replace("/log/", "");
-                        String timeZone = inputLine.substring(0, inputLine.indexOf(' '));
-                        String authData = inputLine.substring(   inputLine.indexOf(' ') + 1);
-                        String username = authData.substring(0, authData.indexOf('/'));
+                        String username = inputLine.replace("/log/", "");
 
                         if (Server.recognizesUser(username)) {
-                            char[] password = authData.substring(authData.indexOf('/') + 1)
-                                    .toCharArray();
-                            User enteringUser = Server.getUser(username);
-                            if (!enteringUser.hasCorrectPassword(password)) {
-                                out.println("/deny");
-                            } else {
-                                out.println("/pass");
-                                user = enteringUser;
-                                user.connect(out, ZoneId.of(timeZone));
-                            }
+                            out.println("/hash/" + Server.getUser(username).getPasswordHash());
                         } else {
-                            out.println("/deny");
+                            out.println("/denyLog");
                         }
+                    } else if (inputLine.startsWith("/match/")) {
+                        inputLine = inputLine.replace("/match/", "");
+
+                        String username = inputLine.substring(0, inputLine.indexOf('/'));
+                        String timeZone = inputLine.substring(   inputLine.indexOf('/') + 1);
+
+                        user = Server.getUser(username);
+                        user.connect(out, ZoneId.of(timeZone));
                     } else if (inputLine.startsWith("/reg/")) {
                         inputLine = inputLine.replace("/reg/", "");
+
                         String timeZone = inputLine.substring(0, inputLine.indexOf(' '));
                         String authData = inputLine.substring(   inputLine.indexOf(' ') + 1);
-                        String username = authData.substring(0, authData.indexOf('/'));
+                        String username     = authData.substring(0, authData.indexOf('/'));
+                        String passwordHash = authData.substring(   authData.indexOf('/') + 1);
 
                         if (!Server.recognizesUser(username)) {
-                            out.println("/pass");
-                            char[] password = authData.substring(authData.indexOf('/') + 1)
-                                    .toCharArray();
-                            user = new User(username, password);
+                            out.println("/allowReg");
+                            user = new User(username, passwordHash);
                             user.connect(out, ZoneId.of(timeZone));
                         } else {
-                            out.println("/denyName");
+                            out.println("/denyReg");
                         }
                     } else if (inputLine.startsWith("/add/")) {
                         String contact = inputLine.replace("/add/", "");
+
                         if (!Server.recognizesUser(contact)) {
                             out.println("/notFound/" + contact);
                         } else {
@@ -75,6 +70,7 @@ public class UserThread implements Runnable {
                 } else {
                     String contactName = inputLine.substring(0, inputLine.indexOf('/'));
                     String message     = inputLine.substring(   inputLine.indexOf('/') + 1);
+
                     User contact = Server.getUser(contactName);
                     String detailedMessage = user.getUsername() + ": " + message;
 

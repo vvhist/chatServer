@@ -4,21 +4,20 @@ import java.io.PrintWriter;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public final class User {
 
     private String username;
-    private char[] password;
+    private String passwordHash;
     private PrintWriter out;
     private ZoneId timeZone;
     private Queue<Message> unsentMessages = new ConcurrentLinkedQueue<>();
 
-    public User(String username, char[] password) {
+    public User(String username, String passwordHash) {
         this.username = username;
-        this.password = password;
+        this.passwordHash = passwordHash;
         Server.addUser(username, this);
     }
 
@@ -26,8 +25,8 @@ public final class User {
         return username;
     }
 
-    public boolean hasCorrectPassword(char[] suggestedPassword) {
-        return Arrays.equals(password, suggestedPassword);
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
     public void connect(PrintWriter out, ZoneId timeZone) {
