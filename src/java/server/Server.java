@@ -8,18 +8,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class Server {
 
     private static final int PORT = 9009;
-    private static Map<String, User> users = new ConcurrentHashMap<>();
+    private static final Map<String, User> USERS = new ConcurrentHashMap<>();
+
+    private Server() {}
 
     public static User getUser(String username) {
-        return users.get(username);
+        return USERS.get(username);
     }
 
     public static void addUser(String username, User user) {
-        users.put(username, user);
-    }
-
-    public static boolean recognizesUser(String username) {
-        return users.containsKey(username);
+        USERS.put(username, user);
     }
 
     public static void main(String[] args) {
@@ -30,6 +28,8 @@ public final class Server {
         } catch (IOException e) {
             System.err.println("Could not listen on port " + PORT);
             System.exit(-1);
+        } finally {
+            Database.close();
         }
     }
 }

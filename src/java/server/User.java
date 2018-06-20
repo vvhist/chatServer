@@ -10,23 +10,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public final class User {
 
     private String username;
-    private String passwordHash;
     private PrintWriter out;
     private ZoneId timeZone;
     private Queue<Message> unsentMessages = new ConcurrentLinkedQueue<>();
 
-    public User(String username, String passwordHash) {
+    public User(String username) {
         this.username = username;
-        this.passwordHash = passwordHash;
         Server.addUser(username, this);
     }
 
     public String getUsername() {
         return username;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
     }
 
     public void connect(PrintWriter out, ZoneId timeZone) {

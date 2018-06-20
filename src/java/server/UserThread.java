@@ -2,6 +2,7 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.time.ZoneId;
 
 public final class UserThread implements Runnable {
@@ -30,8 +31,8 @@ public final class UserThread implements Runnable {
                     } else if (inputLine.startsWith("/log/")) {
                         String username = inputLine.replace("/log/", "");
 
-                        if (Server.recognizesUser(username)) {
-                            out.println("/hash/" + Server.getUser(username).getPasswordHash());
+                        if (Database.containsUser(username)) {
+                            out.println("/hash/" + Database.getPasswordHash(username));
                         } else {
                             out.println("/denyLog");
                         }
@@ -51,9 +52,10 @@ public final class UserThread implements Runnable {
                         String username     = authData.substring(0, authData.indexOf('/'));
                         String passwordHash = authData.substring(   authData.indexOf('/') + 1);
 
-                        if (!Server.recognizesUser(username)) {
+                        if (!Database.containsUser(username)) {
                             out.println("/allowReg");
-                            user = new User(username, passwordHash);
+                            Database.addUser(username, passwordHash);
+                            user = new User(username);
                             user.connect(out, ZoneId.of(timeZone));
                         } else {
                             out.println("/denyReg");
@@ -61,7 +63,7 @@ public final class UserThread implements Runnable {
                     } else if (inputLine.startsWith("/add/")) {
                         String contact = inputLine.replace("/add/", "");
 
-                        if (!Server.recognizesUser(contact)) {
+                        if (!Database.containsUser(contact)) {
                             out.println("/notFound/" + contact);
                         } else {
                             out.println("/newDialog/" + contact);
@@ -78,7 +80,7 @@ public final class UserThread implements Runnable {
                     user.sendMessage(contact.getUsername() + "/" + detailedMessage);
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | SQLException e) {
             e.printStackTrace();
         } finally {
             if (user != null) {
