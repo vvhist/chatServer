@@ -3,12 +3,14 @@ package server;
 import java.io.*;
 import java.net.Socket;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 public final class UserThread implements Runnable {
 
-    private Socket socket;
-    private User user = null;
+    private final Socket socket;
+    private OnlineUser user = null;
 
     public UserThread(Socket socket) {
         this.socket = socket;
@@ -16,7 +18,6 @@ public final class UserThread implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("UserThread: " + Thread.currentThread().getName());
         try (BufferedReader in = new BufferedReader(
                      new InputStreamReader(
                              socket.getInputStream(), "UTF-8"));
@@ -42,8 +43,8 @@ public final class UserThread implements Runnable {
                         String username = inputLine.substring(0, inputLine.indexOf('/'));
                         String timeZone = inputLine.substring(   inputLine.indexOf('/') + 1);
 
-                        user = Server.getUser(username);
-                        user.connect(out, ZoneId.of(timeZone));
+                        user = new OnlineUser(username, ZoneId.of(timeZone), out);
+                        Server.connect(user);
                     } else if (inputLine.startsWith("/reg/")) {
                         inputLine = inputLine.replace("/reg/", "");
 
@@ -52,11 +53,10 @@ public final class UserThread implements Runnable {
                         String username     = authData.substring(0, authData.indexOf('/'));
                         String passwordHash = authData.substring(   authData.indexOf('/') + 1);
 
-                        if (!Database.containsUser(username)) {
+                        if (Database.addUser(username, passwordHash)) {
                             out.println("/allowReg");
-                            Database.addUser(username, passwordHash);
-                            user = new User(username);
-                            user.connect(out, ZoneId.of(timeZone));
+                            user = new OnlineUser(username, ZoneId.of(timeZone), out);
+                            Server.connect(user);
                         } else {
                             out.println("/denyReg");
                         }
@@ -70,25 +70,28 @@ public final class UserThread implements Runnable {
                         }
                     }
                 } else {
-                    String contactName = inputLine.substring(0, inputLine.indexOf('/'));
-                    String message     = inputLine.substring(   inputLine.indexOf('/') + 1);
+                    String recipientName = inputLine.substring(0, inputLine.indexOf('/'));
+                    String text          = inputLine.substring(   inputLine.indexOf('/') + 1);
 
-                    User contact = Server.getUser(contactName);
-                    String detailedMessage = user.getUsername() + ": " + message;
+                    String senderName = user.getUsername();
+                    LocalDateTime serverTime = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
-                    contact.sendMessage(user.getUsername() + "/" + detailedMessage);
-                    user.sendMessage(contact.getUsername() + "/" + detailedMessage);
+                    Message message = new Message(senderName, recipientName, serverTime, text);
+                    Database.addMessage(message);
+
+                    OnlineUser recipient = Server.getUser(recipientName);
+                    user.sendMessage(message);
+                    recipient.sendMessage(message);
                 }
             }
         } catch (IOException | SQLException e) {
             e.printStackTrace();
         } finally {
             if (user != null) {
-                user.disconnect();
+                Server.disconnect(user);
             }
             try {
                 socket.close();
-                System.out.println("Socket closed");
             } catch (IOException e) {
                 e.printStackTrace();
             }
