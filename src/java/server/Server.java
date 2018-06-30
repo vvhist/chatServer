@@ -10,20 +10,23 @@ import java.util.concurrent.Executors;
 public final class Server {
 
     private static final int PORT = 9009;
-    private static final Map<String, OnlineUser> USERS = new ConcurrentHashMap<>();
+    private static final Map<String, UserOutputProtocol> OUTPUTS = new ConcurrentHashMap<>();
 
     private Server() {}
 
-    public static OnlineUser getUser(String username) {
-        return USERS.get(username);
+    public static void sendTo(String username, Message message) {
+        UserOutputProtocol userOutput = OUTPUTS.get(username);
+        if (userOutput != null) {
+            userOutput.sendMessage(message);
+        }
     }
 
-    public static void connect(OnlineUser user) {
-        USERS.put(user.getUsername(), user);
+    public static void add(String username, UserOutputProtocol userOutput) {
+        OUTPUTS.put(username, userOutput);
     }
 
-    public static void disconnect(OnlineUser user) {
-        USERS.remove(user.getUsername());
+    public static void remove(String username) {
+        OUTPUTS.remove(username);
     }
 
     public static void main(String[] args) {
@@ -32,7 +35,7 @@ public final class Server {
 
                 ExecutorService pool = Executors.newCachedThreadPool();
                 while (true) {
-                    pool.submit((new UserThread(serverSocket.accept())));
+                    pool.submit((new UserConnection(serverSocket.accept())));
                 }
             } catch (IOException e) {
                 System.err.println("Could not listen on port " + PORT);

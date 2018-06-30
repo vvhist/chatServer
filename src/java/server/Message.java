@@ -39,6 +39,9 @@ public final class Message {
 
     @Override
     public String toString() {
-        return sender + "/" + recipient + "/" + timestamp + "/" + text;
+        return sender
+                + UserOutputProtocol.DELIMITER + recipient
+                + UserOutputProtocol.DELIMITER + timestamp
+                + UserOutputProtocol.DELIMITER + text;
     }
 }
