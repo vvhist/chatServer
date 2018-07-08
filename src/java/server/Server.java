@@ -21,11 +21,11 @@ public final class Server {
         }
     }
 
-    public static void add(String username, UserOutputProtocol userOutput) {
+    public static void addOnlineUser(String username, UserOutputProtocol userOutput) {
         OUTPUTS.put(username, userOutput);
     }
 
-    public static void remove(String username) {
+    public static void removeOnlineUser(String username) {
         OUTPUTS.remove(username);
     }
 

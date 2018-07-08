@@ -39,9 +39,6 @@ public final class Message {
 
     @Override
     public String toString() {
-        return sender
-                + UserOutputProtocol.DELIMITER + recipient
-                + UserOutputProtocol.DELIMITER + timestamp
-                + UserOutputProtocol.DELIMITER + text;
+        return String.join(Command.DELIMITER, sender, recipient, timestamp.toString(), text);
     }
 }
