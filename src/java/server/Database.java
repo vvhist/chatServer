@@ -1,6 +1,8 @@
 package server;
 
 import org.h2.jdbcx.JdbcConnectionPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -9,6 +11,7 @@ import java.util.List;
 
 public final class Database {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Database.class);
     private static final JdbcConnectionPool POOL = JdbcConnectionPool.create(
             "jdbc:h2:./data", "user", "");
 
@@ -28,8 +31,9 @@ public final class Database {
                     + "timestamp    TIMESTAMP(0) NOT NULL,"
                     + "text         VARCHAR      NOT NULL)"
             );
+            LOGGER.info("Database has been created");
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to create a database", e);
         }
     }
 
@@ -46,7 +50,12 @@ public final class Database {
             preStatement.setString(1, username);
             preStatement.setString(2, passwordHash);
             preStatement.executeUpdate();
+
+            LOGGER.info("User {} has been successfully registered", username);
             return true;
+        } catch (SQLException e) {
+            LOGGER.error("Failed to register new user {}", username, e);
+            throw e;
         }
     }
 
@@ -65,6 +74,10 @@ public final class Database {
             preStatement.setString(3, message.getSender());
             preStatement.setString(4, message.getRecipient());
             preStatement.executeUpdate();
+            LOGGER.debug("Message has been recorded: {}", message.toString());
+        } catch (SQLException e) {
+            LOGGER.error("Failed to record a message: {}", message.toString(), e);
+            throw e;
         }
     }
 
@@ -87,12 +100,18 @@ public final class Database {
                     String text = resultSet.getString(4);
                     history.add(new Message(sender, recipient, timestamp, text));
                 }
+                LOGGER.debug("History of user {} has been collected", username);
                 return history;
             }
+        } catch (SQLException e) {
+            LOGGER.error("Failed to collect history of user {}", username, e);
+            throw e;
         }
     }
 
     public static boolean containsUser(String username) throws SQLException {
+        LOGGER.debug("Checking if user {} is registered", username);
+
         String sql = "SELECT id FROM users WHERE username = ?";
         try (Connection connection = POOL.getConnection();
              PreparedStatement preStatement = connection.prepareStatement(sql)) {
@@ -101,10 +120,15 @@ public final class Database {
             try (ResultSet resultSet = preStatement.executeQuery()) {
                 return resultSet.isBeforeFirst();
             }
+        } catch (SQLException e) {
+            LOGGER.error("Failed to check if user {} is registered", username, e);
+            throw e;
         }
     }
 
     public static String getPasswordHash(String username) throws SQLException {
+        LOGGER.debug("Trying to get password hash of user {}", username);
+
         String sql = "SELECT password_hash FROM users WHERE username = ?";
         try (Connection connection = POOL.getConnection();
              PreparedStatement preStatement = connection.prepareStatement(sql)) {
@@ -113,10 +137,14 @@ public final class Database {
             try (ResultSet resultSet = preStatement.executeQuery()) {
                 return resultSet.next() ? resultSet.getString(1) : "";
             }
+        } catch (SQLException e) {
+            LOGGER.error("Failed to get password hash of user {}", username, e);
+            throw e;
         }
     }
 
     public static void close() {
         POOL.dispose();
+        LOGGER.info("Database connection pool has been disposed");
     }
 }

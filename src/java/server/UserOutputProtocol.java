@@ -1,5 +1,8 @@
 package server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -8,44 +11,52 @@ import java.util.List;
 
 public final class UserOutputProtocol {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserOutputProtocol.class);
     private UserConnection connection;
-    private String username = null;
+    private String username = "";
     private ZoneId timeZone;
 
     public UserOutputProtocol(UserConnection connection) {
         this.connection = connection;
     }
 
-    public boolean process(String inputLine) throws SQLException {
+    public boolean process(String inputLine) {
         String[] input = inputLine.split(Command.DELIMITER, 3);
-        switch (Command.Input.get(input[0])) {
-            case NEW_MESSAGE:
-                processMessage(input[1], input[2]);
-                break;
-            case REGISTRATION:
-                registerIfNew(input[1], input[2]);
-                break;
-            case HASH_REQUEST:
-                sendHashIfExists(input[1]);
-                break;
-            case LOGIN:
-                logIn(input[1]);
-                sendHistory();
-                break;
-            case TIMEZONE:
-                timeZone = ZoneId.of(input[1]);
-                break;
-            case NEW_CONTACT:
-                addContactIfExists(input[1]);
-                break;
-            case EXIT:
-                return false;
+        Command.Input command = Command.Input.get(input[0]);
+        LOGGER.trace("From client: {}", inputLine.replaceFirst(input[0], command.name()));
+        try {
+            switch (command) {
+                case NEW_MESSAGE:
+                    processMessage(input[1], input[2]);
+                    break;
+                case REGISTRATION:
+                    registerIfNew(input[1], input[2]);
+                    break;
+                case HASH_REQUEST:
+                    sendHashIfExists(input[1]);
+                    break;
+                case LOGIN:
+                    logIn(input[1]);
+                    sendHistory();
+                    break;
+                case TIMEZONE:
+                    setTimeZone(input[1]);
+                    break;
+                case NEW_CONTACT:
+                    addContactIfExists(input[1]);
+                    break;
+                case EXIT:
+                    LOGGER.debug("User {} has disconnected", username);
+                    return false;
+            }
+            return true;
+        } catch (SQLException e) {
+            return false;
         }
-        return true;
     }
 
     public void close() {
-        if (username != null) {
+        if (!username.isEmpty()) {
             Server.removeOnlineUser(username);
         }
     }
@@ -90,6 +101,11 @@ public final class UserOutputProtocol {
     private void sendHistory() throws SQLException {
         List<Message> history = Database.getHistory(username);
         history.forEach(this::sendMessage);
+    }
+
+    private void setTimeZone(String zoneId) {
+        timeZone = ZoneId.of(zoneId);
+        LOGGER.debug("Client's time zone is {}", zoneId);
     }
 
     private void addContactIfExists(String contact) throws SQLException {
