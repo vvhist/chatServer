@@ -56,6 +56,6 @@ public final class UserConnection implements Runnable {
 
     public void send(Command.Output command, String output) {
         out.println(command + Command.DELIMITER + output);
-        LOGGER.trace("From server: {} {}", command.name(), output);
+        LOGGER.trace("From server: {}", command.name());
     }
 }

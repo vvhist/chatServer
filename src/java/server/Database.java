@@ -1,6 +1,7 @@
 package server;
 
 import org.h2.jdbcx.JdbcConnectionPool;
+import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ public final class Database {
 
     private Database() {}
 
-    public synchronized static boolean addUser(String username, String passwordHash)
+    public synchronized static boolean addUser(String username, String password)
             throws SQLException {
         if (containsUser(username)) return false;
 
@@ -48,7 +49,7 @@ public final class Database {
              PreparedStatement preStatement = connection.prepareStatement(sql)) {
 
             preStatement.setString(1, username);
-            preStatement.setString(2, passwordHash);
+            preStatement.setString(2, BCrypt.hashpw(password, BCrypt.gensalt()));
             preStatement.executeUpdate();
 
             LOGGER.info("User {} has been successfully registered", username);
@@ -74,7 +75,7 @@ public final class Database {
             preStatement.setString(3, message.getSender());
             preStatement.setString(4, message.getRecipient());
             preStatement.executeUpdate();
-            LOGGER.debug("Message has been recorded: {}", message.toString());
+            LOGGER.debug("Message has been recorded");
         } catch (SQLException e) {
             LOGGER.error("Failed to record a message: {}", message.toString(), e);
             throw e;
@@ -126,8 +127,9 @@ public final class Database {
         }
     }
 
-    public static String getPasswordHash(String username) throws SQLException {
-        LOGGER.debug("Trying to get password hash of user {}", username);
+    public static boolean areCredentialsCorrect(String username, String password)
+            throws SQLException {
+        LOGGER.debug("Verifying credentials of user {}", username);
 
         String sql = "SELECT password_hash FROM users WHERE username = ?";
         try (Connection connection = POOL.getConnection();
@@ -135,10 +137,13 @@ public final class Database {
 
             preStatement.setString(1, username);
             try (ResultSet resultSet = preStatement.executeQuery()) {
-                return resultSet.next() ? resultSet.getString(1) : "";
+                if (!resultSet.next()) return false;
+
+                String passwordHash = resultSet.getString(1);
+                return BCrypt.checkpw(password, passwordHash);
             }
         } catch (SQLException e) {
-            LOGGER.error("Failed to get password hash of user {}", username, e);
+            LOGGER.error("Failed to verify credentials of user {}", username, e);
             throw e;
         }
     }

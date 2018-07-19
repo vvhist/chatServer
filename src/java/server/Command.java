@@ -9,7 +9,6 @@ public final class Command {
 
     public enum Input {
         REGISTRATION("reg"),
-        HASH_REQUEST("hash"),
         LOGIN       ("log"),
         TIMEZONE    ("zone"),
         NEW_MESSAGE ("m"),
@@ -36,10 +35,9 @@ public final class Command {
     }
 
     public enum Output {
-        ALLOWED_REGISTRATION("reg"),
+        ALLOWED_LOGIN       ("log"),
         DENIED_REGISTRATION ("!reg"),
         DENIED_LOGIN        ("!log"),
-        PASSWORD_HASH       ("hash"),
         MESSAGE             ("m"),
         FOUND_USER          ("add"),
         NOT_FOUND_USER      ("!add");
